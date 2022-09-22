@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "This is my Issue Tracker project for AWD 1111.",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "start": "node server.js",
     "start-dev": "nodemon -r dotenv/config server.js"
