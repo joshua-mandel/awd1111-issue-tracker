@@ -16,15 +16,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
-app.get('/', (req, res, next) => {
-  debugMain(`Home Page`);
-  res.type('text/plain').send('Home Page');
-});
+// app.get('/', (req, res, next) => {
+//   debugMain(`Home Page`);
+//   res.type('text/plain').send('Home Page');
+// });
 
 // register routes
 app.use('/api/user', userRouter);
 app.use('/api/bug', bugRouter);
-// app.use('/', express.static('public', { index: 'index.html' }));
+app.use('/', express.static('public', { index: 'index.html' }));
 
 // register error handlers
 app.use((req, res, next) => {
