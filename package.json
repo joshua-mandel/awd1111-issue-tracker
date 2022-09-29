@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/joshua-mandel/awd1111-issue-tracker#readme",
   "dependencies": {
+    "config": "^3.3.8",
     "cookie-parser": "^1.4.6",
     "debug": "^4.3.4",
     "dotenv": "^16.0.2",
@@ -26,6 +27,7 @@
     "express-handlebars": "^6.0.6",
     "lodash": "^4.17.21",
     "moment": "^2.29.4",
+    "mongodb": "^4.10.0",
     "nanoid": "^4.0.0"
   },
   "devDependencies": {

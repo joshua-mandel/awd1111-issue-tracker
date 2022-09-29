@@ -1,0 +1,10 @@
+{
+  "http": {
+    "host": "localhost",
+    "port": 5000
+  },
+  "db": {
+    "url": "DB_URL",
+    "name": "DB_NAME"
+  }
+}

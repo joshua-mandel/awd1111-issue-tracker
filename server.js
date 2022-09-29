@@ -1,7 +1,7 @@
-import * as dotenv from 'dotenv';
-dotenv.config();
-import express from 'express';
 
+import * as dotenv from 'dotenv';
+import config from 'config';
+import express from 'express';
 import debug from 'debug';
 const debugMain = debug('app:server');
 const debugError = debug('app:error');
@@ -9,6 +9,8 @@ import * as path from 'path';
 import cookieParser from 'cookie-parser';
 import { bugRouter } from './routes/api/bug.js';
 import { userRouter } from './routes/api/user.js';
+
+dotenv.config();
 
 // create application
 const app = express();
@@ -37,8 +39,8 @@ app.use((err, req, res, next) => {
 });
 
 // listen for requests
-const hostname = process.env.HOSTNAME || 'localhost';
-const port = process.env.PORT || 5000;
+const hostname = config.get('http.host');
+const port = config.get('http.port');
 app.listen(port, () => {
   debugMain(`Server is running at http://${hostname}:${port}`);
 });
