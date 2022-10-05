@@ -137,25 +137,37 @@ router.put('/:bugId/assign', async (req, res, next) => {
   }
 });
 // close bug
-router.put('/:bugId/close', (req, res, next) => {
-  const bugId = req.params.bugId;
-  const { closed } = req.body;
-  const bug = bugsArray.find((x) => x._id == bugId);
-
-  if (!bug) {
-    res.status(404).json({ error: 'Bug Not Found!' });
-  } else {
-    if (closed == 'close') {
-      bug.closed = true;
-    } else if (closed == 'open') {
-      bug.closed = false;
+router.put('/:bugId/close', async (req, res, next) => {
+  try {
+    const bugId = newId(req.params.bugId);
+    const bug = await dbModule.findBugById(bugId);
+  
+    if (!bug) {
+      res.status(404).json({ error: 'Bug Not Found!' });
     } else {
-      res.status(400).json({ error: 'Please enter close or open!' });
+      const { closed } = req.body;
+      if (closed == 'close') {
+        bug.closed = true;
+      } else if (closed == 'open') {
+        bug.closed = false;
+      } else {
+        res.status(400).json({ error: 'Please enter close or open!' });
+      }
+      if(bug.closed == true) {
+        bug.closedOn = new Date();
+        res.status(200).json({ message: `Bug ${bugId} closed!`, bugId });
+      } else {
+        bug.closedOn = null;
+        bug.openedOn = new Date();
+        res.status(200).json({ message: `Bug ${bugId} opened!`, bugId });
+      }
+      await dbModule.updateOneBug(bugId, bug)
     }
-    bug.updatedDate = new Date();
-
-    res.json(bug);
+  } catch (err) {
+    next(err);
   }
+  
+  
   // FIXME: close bug and send response as json
 });
 
