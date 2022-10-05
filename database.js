@@ -35,9 +35,15 @@ async function findAllUsers() {
   return users;
 }
 
+async function findAllBugs() {
+  const db = await connect();
+  const bugs = await db.collection('issue').find({}).toArray();
+  return bugs;
+}
+
 async function findUserIdByEmail(email) {
   const db = await connect();
-  const user = await db.collection('user').findOne({_email: { $eq: emailAddress}});
+  const user = await db.collection('user').findOne({ _email: { $eq: emailAddress } });
   return user._id;
 }
 
@@ -47,32 +53,99 @@ async function findUserById(userId) {
   return user;
 }
 
+async function findBugById(bugId) {
+  const db = await connect();
+  const bug = await db.collection('issue').findOne({ _id: { $eq: bugId } });
+  return bug;
+}
+
 async function insertOneUser(user) {
   const db = await connect();
   await db.collection('user').insertOne({
     ...user,
-    fullName: user.givenName + " " + user.familyName,
+    fullName: user.givenName + ' ' + user.familyName,
+    createdDate: new Date(),
+  });
+}
+
+async function insertOneBug(bug) {
+  const db = await connect();
+  await db.collection('issue').insertOne({
+    ...bug,
     createdDate: new Date(),
   });
 }
 
 async function findUserByEmail(newEmail) {
   const db = await connect();
-  const userFound = await db.collection('user').findOne({ emailAddress: { $eq: newEmail }});
+  const userFound = await db.collection('user').findOne({ emailAddress: { $eq: newEmail } });
   return userFound;
 }
 
 async function login(emailAddress, password) {
   const db = await connect();
   const userLoggedIn = await db.collection('user').findOne({
-    emailAddress: {$eq: emailAddress},
-    password: {$eq:password}
+    emailAddress: { $eq: emailAddress },
+    password: { $eq: password },
   });
   return userLoggedIn;
 }
 
+async function updateOneUser(userId, update) {
+  const db = await connect();
+  const user = await db.collection('user').updateOne(
+    {
+      _id: { $eq: userId },
+    },
+    {
+      $set: {
+        ...update,
+        lastUpdated: new Date(),
+      },
+    }
+  );
+}
+
+async function updateOneBug(bugId, update) {
+  const db = await connect();
+  const bug = await db.collection('issue').updateOne(
+    {
+      _id: { $eq: bugId },
+    },
+    {
+      $set: {
+        ...update,
+        lastUpdated: new Date(),
+      },
+    }
+  );
+}
+
+async function deleteOneUser(userId) {
+  const db = await connect();
+  const user = await db.collection('user').deleteOne({
+    _id: { $eq: userId },
+  });
+}
+
 // export functions
-export { newId, connect, ping, findAllUsers, findUserById, insertOneUser, findUserByEmail, findUserIdByEmail, login };
+export {
+  newId,
+  connect,
+  ping,
+  findAllUsers,
+  findUserById,
+  insertOneUser,
+  findUserByEmail,
+  findUserIdByEmail,
+  login,
+  updateOneUser,
+  deleteOneUser,
+  findAllBugs,
+  findBugById,
+  insertOneBug,
+  updateOneBug,
+};
 
 // test the database connection
 ping();

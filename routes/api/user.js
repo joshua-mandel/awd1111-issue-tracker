@@ -29,7 +29,7 @@ router.get('/:userId', async (req, res, next) => {
     if (!user) {
       res.status(404).json({ error: `User ${userId} not found.` });
     } else {
-      res.json(user);
+      res.status(200).json(user);
     }
   } catch (err) {
     next(err);
@@ -73,17 +73,17 @@ router.post('/login', async (req, res, next) => {
   try {
     const loginCreds = {
       emailAddress: req.body.emailAddress,
-      password: req.body.password
-    }
-    
-    if(!loginCreds.emailAddress || !loginCreds.password) {
+      password: req.body.password,
+    };
+
+    if (!loginCreds.emailAddress || !loginCreds.password) {
       res.status(400).json({ error: 'Please enter your login credentials' });
     } else {
       const userLoggedIn = await dbModule.login(loginCreds.emailAddress, loginCreds.password);
-      if(!userLoggedIn) {
+      if (!userLoggedIn) {
         res.status(400).json({ error: 'Invalid login credential provided. Please try again.' });
       } else {
-        res.status(200).json({ message: `Welcome back!, ${userLoggedIn._id}`});
+        res.status(200).json({ message: `Welcome back!, ${userLoggedIn._id}` });
       }
     }
   } catch (err) {
@@ -91,46 +91,56 @@ router.post('/login', async (req, res, next) => {
   }
 });
 // Update
-router.put('/:userId', (req, res, next) => {
-  const userId = req.params.userId;
-  const { email, password, givenName, familyName, role } = req.body;
-  const user = usersArray.find((x) => x._id == userId);
-
-  if (!user) {
-    res.status(404).json({ error: 'User Not Found!' });
-  } else {
-    if (email != undefined) {
-      user.email = email;
+router.put('/:userId', async (req, res, next) => {
+  try {
+    const userId = newId(req.params.userId);
+    const user = await dbModule.findUserById(userId);
+    if (!user) {
+      res.status(404).json({ error: `User ${userId} not found.` });
+    } else {
+      const{ emailAddress, password, givenName, familyName, role } = req.body;
+      if (emailAddress != undefined) {
+        user.emailAddress = emailAddress;
+      }
+      if (password != undefined) {
+        user.password = password;
+      }
+      if (givenName != undefined) {
+        user.givenName = givenName;
+      }
+      if (familyName != undefined) {
+        user.familyName = familyName;
+      }
+      if (role != undefined) {
+        user.role = role;
+      }
+      user.fullName = user.givenName + ' ' + user.familyName;
+      await dbModule.updateOneUser(userId, user);
+      res.status(200).json({ message: `User ${userId} updated, ${userId}`});
     }
-    if (password != undefined) {
-      user.password = password;
-    }
-    if (givenName != undefined) {
-      user.givenName = givenName;
-    }
-    if (familyName != undefined) {
-      user.familyName = familyName;
-    }
-    if (role != undefined) {
-      user.role = role;
-    }
-    user.fullName = user.givenName + ' ' + user.familyName;
-    user.updatedDate = new Date();
-
-    res.status(200).json(user);
+  } catch (err) {
+    next(err);
   }
-  //FIXME: update existing user and send response as json
 });
 // Delete
-router.delete('/:userId', (req, res, next) => {
-  const userId = req.params.userId;
-  const index = usersArray.findIndex((user) => user._id == userId);
-  if (index < 0) {
-    res.status(404).json({ error: 'User not found!' });
+router.delete('/:userId', async (req, res, next) => {
+  const userId = newId(req.params.userId);
+  const user = await dbModule.findUserById(userId);
+  if(!user) {
+    res.status(404).json({ error: `User ${userId} not found` });
   } else {
-    usersArray.splice(index, 1);
-    res.json({ message: 'User deleted' });
+    await dbModule.deleteOneUser(userId);
+    res.json({ message: `User ${userId} deleted.` })
   }
+
+  // const userId = req.params.userId;
+  // const index = usersArray.findIndex((user) => user._id == userId);
+  // if (index < 0) {
+  //   res.status(404).json({ error: 'User not found!' });
+  // } else {
+  //   usersArray.splice(index, 1);
+  //   res.json({ message: 'User deleted' });
+  // }
   //FIXME: delete user and send response as json
 });
 
