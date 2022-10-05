@@ -161,7 +161,7 @@ router.put('/:bugId/close', async (req, res, next) => {
         bug.openedOn = new Date();
         res.status(200).json({ message: `Bug ${bugId} opened!`, bugId });
       }
-      await dbModule.updateOneBug(bugId, bug)
+      await dbModule.updateOneBug(bugId, bug);
     }
   } catch (err) {
     next(err);
