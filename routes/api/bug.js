@@ -143,7 +143,7 @@ router.put('/:bugId/close', async (req, res, next) => {
     const bug = await dbModule.findBugById(bugId);
   
     if (!bug) {
-      res.status(404).json({ error: 'Bug Not Found!' });
+      res.status(404).json({ error: `Bug ${bugId} not found.` });
     } else {
       const { closed } = req.body;
       if (closed == 'close') {
