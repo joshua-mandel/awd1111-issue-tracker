@@ -79,7 +79,7 @@ router.post('/register', validBody(newUserSchema), async (req, res, next) => {
 
     const foundUser = await dbModule.findUserByEmail(user.emailAddress);
     if (foundUser != undefined) {
-      res.status(400).json({ error: 'Email already registered' });s
+      res.status(400).json({ error: 'Email already registered' });
     } else {
       await dbModule.insertOneUser(user);
       res.status(200).json({ message: `New user registered!, ${user._id}` });

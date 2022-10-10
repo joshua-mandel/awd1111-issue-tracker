@@ -49,7 +49,7 @@ async function findAllComments(bugId) {
   return foundBug.comments;
 }
 
-async function findUserIdByEmail(email) {
+async function findUserIdByEmail(emailAddress) {
   const db = await connect();
   const user = await db.collection('user').findOne({ _email: { $eq: emailAddress } });
   return user._id;
@@ -65,6 +65,13 @@ async function findBugById(bugId) {
   const db = await connect();
   const bug = await db.collection('issue').findOne({ _id: { $eq: bugId } });
   return bug;
+}
+
+async function findCommentById(bugId, commentId) {
+  const db = await connect();
+  const bug = await db.collection('issue').findOne({ _id: {$eq: bugId }});
+  const bugComment = bug.comments.find((comments) => comments._id.toString() == commentId);
+  return bugComment;
 }
 
 async function insertOneUser(user) {
@@ -154,6 +161,7 @@ export {
   insertOneBug,
   updateOneBug,
   findAllComments,
+  findCommentById
 };
 
 // test the database connection
