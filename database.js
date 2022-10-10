@@ -37,8 +37,16 @@ async function findAllUsers() {
 
 async function findAllBugs() {
   const db = await connect();
-  const bugs = await db.collection('issue').find({}).toArray();
+  const bugs = await db.collection('issue.comment').find({}).toArray();
   return bugs;
+}
+
+async function findAllComments(bugId) {
+  const db = await connect();
+  const foundBug = await findBugById(bugId);
+  //const comments = await db.collection('issue').find({})
+  debugDatabase(foundBug.comments);
+  return foundBug.comments;
 }
 
 async function findUserIdByEmail(email) {
@@ -145,6 +153,7 @@ export {
   findBugById,
   insertOneBug,
   updateOneBug,
+  findAllComments,
 };
 
 // test the database connection
