@@ -71,6 +71,7 @@ router.put('/:bugId/comment/new', validId('bugId'), validBody(newCommentSchema),
       } else {
         bug.comments = [comment];
       }
+      comment.author = new ObjectId(comment.author);
       await dbModule.updateOneBug(bugId, bug);
       res.status(200).json({ message: `Bug Comment ${comment._id.toString()} added!` });
     }

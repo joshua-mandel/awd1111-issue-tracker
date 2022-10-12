@@ -10,6 +10,7 @@ import cookieParser from 'cookie-parser';
 import { bugRouter } from './routes/api/bug.js';
 import { userRouter } from './routes/api/user.js';
 import { commentRouter } from './routes/api/comment.js';
+import { testRouter } from './routes/api/test.js';
 
 dotenv.config();
 
@@ -28,6 +29,7 @@ app.use(cookieParser());
 app.use('/api/user', userRouter);
 app.use('/api/bug', bugRouter);
 app.use('/api/bug', commentRouter);
+app.use('/api/bug', testRouter);
 app.use('/', express.static('public', { index: 'index.html' }));
 
 // register error handlers

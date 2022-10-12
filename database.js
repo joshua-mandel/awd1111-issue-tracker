@@ -49,6 +49,13 @@ async function findAllComments(bugId) {
   return foundBug.comments;
 }
 
+async function findAllTests(bugId) {
+  const db = await connect();
+  const foundBug = await findBugById(bugId);
+  debugDatabase(foundBug.tests);
+  return foundBug.tests;
+}
+
 async function findUserIdByEmail(emailAddress) {
   const db = await connect();
   const user = await db.collection('user').findOne({ _email: { $eq: emailAddress } });
@@ -69,9 +76,16 @@ async function findBugById(bugId) {
 
 async function findCommentById(bugId, commentId) {
   const db = await connect();
-  const bug = await db.collection('issue').findOne({ _id: {$eq: bugId }});
+  const bug = await db.collection('issue').findOne({ _id: { $eq: bugId } });
   const bugComment = bug.comments.find((comments) => comments._id.toString() == commentId);
   return bugComment;
+}
+
+async function findTestById(bugId, testId) {
+  const db = await connect();
+  const bug = await db.collection('issue').findOne({ _id: { $eq: bugId } });
+  const bugTest = bug.tests.find((tests) => tests._id.toString() == testId);
+  return bugTest;
 }
 
 async function insertOneUser(user) {
@@ -136,11 +150,41 @@ async function updateOneBug(bugId, update) {
   );
 }
 
+async function updateOneTest(bugId, updatedBugTestCase) {
+  const db = await connect();
+  debugDatabase(updatedBugTestCase._id);
+  const data = await db.collection('issue').updateOne(
+    { _id: { $eq: bugId }, 'tests._id': { $eq: updatedBugTestCase._id } },
+    {
+      $set: { 'tests.$.status': updatedBugTestCase.status, 'tests.$.lastUpdated': new Date() },
+    }
+  );
+  return data.modifiedCount;
+}
+
+async function executeOneTest(bugId, executeBugTestCase) {
+  const db = await connect();
+  const data = await db.collection('issue').updateOne(
+    { _id: { $eq: bugId }, 'tests._id': { $eq: executeBugTestCase._id } },
+    {
+      $set: { 'tests.$.executedTest': executeBugTestCase.executedTest, 'tests.$.lastUpdated': new Date() },
+    }
+  );
+  return data.modifiedCount;
+}
+
 async function deleteOneUser(userId) {
   const db = await connect();
-  const user = await db.collection('user').deleteOne({
+  await db.collection('user').deleteOne({
     _id: { $eq: userId },
   });
+}
+
+async function deleteOneTest(bugId, deletedTestCase) {
+  const db = await connect();
+  await db
+    .collection('issue')
+    .updateMany({ _id: { $eq: bugId } }, { $pull: { tests: { _id: { $eq: deletedTestCase._id } } } });
 }
 
 // export functions
@@ -161,7 +205,12 @@ export {
   insertOneBug,
   updateOneBug,
   findAllComments,
-  findCommentById
+  findCommentById,
+  findAllTests,
+  findTestById,
+  updateOneTest,
+  executeOneTest,
+  deleteOneTest,
 };
 
 // test the database connection
