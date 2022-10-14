@@ -9,7 +9,7 @@ import { ObjectId } from 'mongodb';
 import { validId } from '../../middleware/validId.js';
 import { validBody } from '../../middleware/validBody.js';
 import Joi from 'joi';
-const debugMain = debug('app:route:user');
+const debugMain = debug('app:route:bug');
 
 // new bug schema
 const newBugSchema = Joi.object({
