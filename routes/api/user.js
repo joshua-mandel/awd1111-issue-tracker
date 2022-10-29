@@ -47,6 +47,9 @@ const router = express.Router();
 // get all users
 router.get('/list', async (req, res, next) => {
   try {
+    if (!req.auth) {
+      return res.status(401).json({ error: 'You must be logged in!' });
+    }
     // get inputs
     let { keywords, role, maxAge, minAge, sortBy, pageNumber, pageSize } = req.query;
 
@@ -105,9 +108,88 @@ router.get('/list', async (req, res, next) => {
     next(err);
   }
 });
+// get your own info
+router.get('/me', async (req, res, next) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ error: 'You must be logged in!' });
+    }
+
+    const userId = newId(req.auth._id);
+    const user = await dbModule.findUserById(userId);
+    if (!user) {
+      res.status(404).json({ error: `User ${userId} not found.` });
+    } else {
+      res.status(200).json(user);
+    }
+
+  } catch (err) {
+    next(err);
+  }
+})
+// update your own info
+router.put('/me', validBody(updateUserSchema), async (req, res, next) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ error: 'You must be logged in!' });
+    }
+
+    const userId = newId(req.auth._id);
+    const user = await dbModule.findUserById(userId);
+    const update = req.body;
+    if (update) {
+      update.lastUpdatedOn = new Date();
+      update.lastUpdatedBy = newId(req.auth._id);
+    }
+
+    if (update.password) {
+      const saltRounds = parseInt(config.get('auth.saltRounds'));
+      update.password = await bcrypt.hash(update.password, saltRounds);
+    }
+
+    if (!user) {
+      res.status(404).json({ error: `User ${userId} not found.` });
+    } else if (
+      update.emailAddress === user.emailAddress ||
+      update.password === user.password ||
+      update.givenName === user.givenName ||
+      update.familyName === user.familyName ||
+      update.role === user.role
+    ) {
+      res.status(400).json({ error: `Duplicate data not allowed.` });
+    } else {
+      if (update.givenName && update.familyName) {
+        update.fullName = update.givenName + ' ' + update.familyName;
+      } else if(update.givenName) {
+        update.fullName = update.givenName + ' ' + user.familyName;
+      } else if (update.familyName) {
+        update.fullName = user.givenName + ' ' + update.familyName;
+      }
+      await dbModule.updateOneUser(userId, update);
+
+      const edit = {
+        timestamp: new Date(),
+        op: 'update',
+        col: 'users',
+        target: { userId },
+        update,
+        auth: req.auth,
+      };
+      await dbModule.saveEdit(edit);
+
+      res.status(200).json({ message: `User ${userId} updated, ${userId}` });
+    }
+
+  } catch (err) {
+    next(err);
+  }
+});
 // get one user by ID
 router.get('/:userId', validId('userId'), async (req, res, next) => {
   try {
+    if (!req.auth) {
+      return res.status(401).json({ error: 'You must be logged in!' });
+    }
     const userId = req.userId;
     const user = await dbModule.findUserById(userId);
     if (!user) {
@@ -201,9 +283,22 @@ router.post('/login', validBody(loginUserSchema), async (req, res, next) => {
 // Update
 router.put('/:userId', validId('userId'), validBody(updateUserSchema), async (req, res, next) => {
   try {
+    if (!req.auth) {
+      return res.status(401).json({ error: 'You must be logged in!' });
+    }
     const userId = req.userId;
     const update = req.body;
     console.log(update);
+
+    if (update) {
+      update.lastUpdatedOn = new Date();
+      update.lastUpdatedBy = newId(req.auth._id);
+    }
+
+    if (update.password) {
+      const saltRounds = parseInt(config.get('auth.saltRounds'));
+      update.password = await bcrypt.hash(update.password, saltRounds);
+    }
 
     const user = await dbModule.findUserById(userId);
     if (!user) {
@@ -225,6 +320,17 @@ router.put('/:userId', validId('userId'), validBody(updateUserSchema), async (re
         update.fullName = user.givenName + ' ' + update.familyName;
       }
       await dbModule.updateOneUser(userId, update);
+
+      const edit = {
+        timestamp: new Date(),
+        op: 'update',
+        col: 'users',
+        target: { userId },
+        update,
+        auth: req.auth,
+      };
+      await dbModule.saveEdit(edit);
+
       res.status(200).json({ message: `User ${userId} updated, ${userId}` });
     }
   } catch (err) {
@@ -234,12 +340,26 @@ router.put('/:userId', validId('userId'), validBody(updateUserSchema), async (re
 // Delete
 router.delete('/:userId', validId('userId'), async (req, res, next) => {
   try {
+    if (!req.auth) {
+      return res.status(401).json({ error: 'You must be logged in!' });
+    }
+
     const userId = req.userId;
     const user = await dbModule.findUserById(userId);
     if (!user) {
       res.status(404).json({ error: `User ${userId} not found` });
     } else {
       await dbModule.deleteOneUser(userId);
+
+      const edit = {
+        timestamp: new Date(),
+        op: 'delete',
+        col: 'users',
+        target: { userId },
+        auth: req.auth,
+      };
+      await dbModule.saveEdit(edit);
+
       res.json({ message: `User ${userId} deleted.` });
     }
   } catch (err) {

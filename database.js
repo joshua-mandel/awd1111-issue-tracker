@@ -128,7 +128,6 @@ async function updateOneUser(userId, update) {
     {
       $set: {
         ...update,
-        lastUpdated: new Date(),
       },
     }
   );
