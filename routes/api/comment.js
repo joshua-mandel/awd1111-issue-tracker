@@ -22,6 +22,10 @@ const router = express.Router();
 
 router.get('/:bugId/comment/list', validId('bugId'), async (req, res, next) => {
   try {
+    if (!req.auth) {
+      return res.status(401).json({ error: 'You must be logged in!' });
+    }
+
     const bugId = req.bugId;
     const bug = await dbModule.findBugById(bugId);
     if (!bug) {
@@ -37,6 +41,10 @@ router.get('/:bugId/comment/list', validId('bugId'), async (req, res, next) => {
 
 router.get('/:bugId/comment/:commentId', validId('bugId'), validId('commentId'), async (req, res, next) => {
   try {
+    if (!req.auth) {
+      return res.status(401).json({ error: 'You must be logged in!' });
+    }
+
     const bugId = req.bugId;
     const commentId = req.commentId;
     const bug = await dbModule.findBugById(bugId);
@@ -58,6 +66,10 @@ router.get('/:bugId/comment/:commentId', validId('bugId'), validId('commentId'),
 // add new comment to bug
 router.put('/:bugId/comment/new', validId('bugId'), validBody(newCommentSchema), async (req, res, next) => {
   try {
+    if (!req.auth) {
+      return res.status(401).json({ error: 'You must be logged in!' });
+    }
+
     const bugId = req.bugId;
     const bug = await dbModule.findBugById(bugId);
     if(!bug) {
@@ -71,7 +83,7 @@ router.put('/:bugId/comment/new', validId('bugId'), validBody(newCommentSchema),
       } else {
         bug.comments = [comment];
       }
-      comment.author = new ObjectId(comment.author);
+      comment.author = newId(req.auth._id);
       await dbModule.updateOneBug(bugId, bug);
       res.status(200).json({ message: `Bug Comment ${comment._id.toString()} added!` });
     }
