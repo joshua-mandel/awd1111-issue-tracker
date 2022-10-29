@@ -142,7 +142,6 @@ async function updateOneBug(bugId, update) {
     {
       $set: {
         ...update,
-        lastUpdated: new Date(),
       },
     }
   );
