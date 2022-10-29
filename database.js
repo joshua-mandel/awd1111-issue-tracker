@@ -93,7 +93,6 @@ async function insertOneUser(user) {
   await db.collection('user').insertOne({
     ...user,
     fullName: user.givenName + ' ' + user.familyName,
-    createdDate: new Date(),
   });
 }
 
@@ -187,6 +186,11 @@ async function deleteOneTest(bugId, deletedTestCase) {
     .updateMany({ _id: { $eq: bugId } }, { $pull: { tests: { _id: { $eq: deletedTestCase._id } } } });
 }
 
+async function saveEdit(edit) {
+  const db = await connect();
+  return await db.collection('edits').insertOne(edit);
+}
+
 // export functions
 export {
   newId,
@@ -211,6 +215,7 @@ export {
   updateOneTest,
   executeOneTest,
   deleteOneTest,
+  saveEdit,
 };
 
 // test the database connection

@@ -1,5 +1,6 @@
 import debug from 'debug';
 import express from 'express';
+import config from 'config';
 import * as dbModule from '../../database.js';
 import { newId, connect } from '../../database.js';
 import moment from 'moment';
@@ -8,6 +9,8 @@ import { nanoid } from 'nanoid';
 import { ObjectId } from 'mongodb';
 import { validId } from '../../middleware/validId.js';
 import { validBody } from '../../middleware/validBody.js';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 import Joi from 'joi';
 const debugMain = debug('app:route:user');
 
@@ -17,12 +20,6 @@ const newUserSchema = Joi.object({
   password: Joi.string().trim().min(1).required(),
   givenName: Joi.string().trim().min(1).required(),
   familyName: Joi.string().trim().min(1).required(),
-  role: Joi.string()
-    .trim()
-    .min(1)
-    .lowercase()
-    .valid('developer', 'quality analyst', 'business analyst', 'technical manager', 'product manager')
-    .required(),
 });
 
 // login schema
@@ -125,16 +122,47 @@ router.get('/:userId', validId('userId'), async (req, res, next) => {
 // Register
 router.post('/register', validBody(newUserSchema), async (req, res, next) => {
   try {
-    const user = req.body;
-    user._id = newId();
-    debug(`insert user`, user);
+    const user = { ...req.body, _id: newId(), createdOn: new Date(), role: null };
 
+    const userId = user._id;
+
+    // hash password
+    user.password = await bcrypt.hash(user.password, 10);
+    
     const foundUser = await dbModule.findUserByEmail(user.emailAddress);
     if (foundUser != undefined) {
       res.status(400).json({ error: 'Email already registered' });
     } else {
-      await dbModule.insertOneUser(user);
-      res.status(200).json({ message: `New user registered!, ${user._id}` });
+      const dbResult = await dbModule.insertOneUser(user);
+      debug('register result:', dbResult);
+
+      // issue token
+      const authPayload = {
+        _id: user._id,
+        role: user.role,
+        email: user.email,
+        fullName: user.fullName,
+      };
+
+      const authSecret = config.get('auth.secret');
+      const authOptions = { expiresIn: config.get('auth.tokenExpiresIn') };
+      const authToken = jwt.sign(authPayload, authSecret, authOptions);
+
+      // create a cookie
+      const cookieOptions = { httpOnly: true, maxAge: parseInt(config.get('auth.cookieMaxAge')) };
+      res.cookie('authToken', authToken, cookieOptions);
+
+      const edit = {
+        timestamp: new Date(),
+        op: 'insert',
+        col: 'users',
+        target: { userId },
+        update: user,
+        auth: req.auth,
+      };
+      await dbModule.saveEdit(edit);
+
+      res.status(200).json({ message: 'New user registered!', userId: user._id, token: authToken });
     }
   } catch (err) {
     next(err);
@@ -144,11 +172,27 @@ router.post('/register', validBody(newUserSchema), async (req, res, next) => {
 router.post('/login', validBody(loginUserSchema), async (req, res, next) => {
   try {
     const loginCreds = req.body;
-    const userLoggedIn = await dbModule.login(loginCreds.emailAddress, loginCreds.password);
-    if (!userLoggedIn) {
-      res.status(400).json({ error: 'Invalid emailAddress and password provided. Please try again.' });
+    const user = await dbModule.findUserByEmail(loginCreds.emailAddress);
+    if (user && (await bcrypt.compare(loginCreds.password, user.password))) {
+      // issue token
+      const authPayload = {
+        _id: user._id,
+        role: user.role,
+        email: user.email,
+        fullName: user.fullName,
+      };
+
+      const authSecret = config.get('auth.secret');
+      const authOptions = { expiresIn: config.get('auth.tokenExpiresIn') };
+      const authToken = jwt.sign(authPayload, authSecret, authOptions);
+
+      // create a cookie
+      const cookieOptions = { httpOnly: true, maxAge: parseInt(config.get('auth.cookieMaxAge')) };
+      res.cookie('authToken', authToken, cookieOptions);
+
+      res.status(200).json({ message: 'Welcome back!', userId: user._id, token: authToken });
     } else {
-      res.status(200).json({ message: `Welcome back!, ${userLoggedIn._id}` });
+      res.status(400).json({ error: 'Invalid credentials provided. Please try again.' });
     }
   } catch (err) {
     next(err);

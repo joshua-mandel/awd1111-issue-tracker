@@ -11,6 +11,7 @@ import { bugRouter } from './routes/api/bug.js';
 import { userRouter } from './routes/api/user.js';
 import { commentRouter } from './routes/api/comment.js';
 import { testRouter } from './routes/api/test.js';
+import { auth } from './middleware/auth.js';
 
 dotenv.config();
 
@@ -19,6 +20,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+app.use(auth());
 
 // app.get('/', (req, res, next) => {
 //   debugMain(`Home Page`);
