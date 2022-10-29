@@ -14,7 +14,6 @@ const debugMain = debug('app:route:test');
 // schemas
 const newTestSchema = Joi.object({
   status: Joi.any().valid('0', '1').required(),
-  createUserId: Joi.string().trim().min(24).max(24).required(),
 });
 
 const updateTestSchema = Joi.object({
@@ -27,6 +26,10 @@ const router = express.Router();
 // get all tests in a bug
 router.get('/:bugId/test/list', validId('bugId'), async (req, res, next) => {
   try {
+    if (!req.auth) {
+      return res.status(401).json({ error: 'You must be logged in!' });
+    }
+
     const bugId = req.bugId;
     const bug = await dbModule.findBugById(bugId);
     if (!bug) {
@@ -43,6 +46,10 @@ router.get('/:bugId/test/list', validId('bugId'), async (req, res, next) => {
 // get a specific test from a bug
 router.get('/:bugId/test/:testId', validId('bugId'), validId('testId'), async (req, res, next) => {
   try {
+    if (!req.auth) {
+      return res.status(401).json({ error: 'You must be logged in!' });
+    }
+
     const bugId = req.bugId;
     const testId = req.testId;
     const bug = await dbModule.findBugById(bugId);
@@ -64,6 +71,10 @@ router.get('/:bugId/test/:testId', validId('bugId'), validId('testId'), async (r
 // add new test to bug
 router.put('/:bugId/test/new', validId('bugId'), validBody(newTestSchema), async (req, res, next) => {
   try {
+    if (!req.auth) {
+      return res.status(401).json({ error: 'You must be logged in!' });
+    }
+    
     const bugId = req.bugId;
     const bug = await dbModule.findBugById(bugId);
     if (!bug) {
@@ -72,13 +83,13 @@ router.put('/:bugId/test/new', validId('bugId'), validBody(newTestSchema), async
       const test = req.body;
       test.status = parseInt(test.status);
       test._id = newId();
-      test.createdDate = new Date();
+      test.createdOn = new Date();
       if (bug.tests) {
         bug.tests.push(test);
       } else {
         bug.tests = [test];
       }
-      test.createUserId = new ObjectId(test.createUserId);
+      test.createdBy = newId(req.auth._id);
       const createdUser = await dbModule.findUserById(test.createUserId);
       if (createdUser.role == 'Quality Analyst') {
         test.testCaseAuthor = createdUser.fullName;
@@ -88,6 +99,17 @@ router.put('/:bugId/test/new', validId('bugId'), validBody(newTestSchema), async
           test.status = 'pass';
         }
         await dbModule.updateOneBug(bugId, bug);
+
+        const edit = {
+          timestamp: new Date(),
+          op: 'update',
+          col: 'users',
+          target: { userId },
+          test,
+          auth: req.auth,
+        };
+        await dbModule.saveEdit(edit);
+
         res.status(200).json({ message: `Bug Test ${test._id.toString()} added!` });
       } else {
         res.status(400).json({ error: `User ${createdUser._id} is not a Quality Analyst.` });
