@@ -104,7 +104,7 @@ router.put('/:bugId/test/new', validId('bugId'), validBody(newTestSchema), async
           timestamp: new Date(),
           op: 'insert',
           col: 'issue.test',
-          target: { userId },
+          target: { testId },
           test,
           auth: req.auth,
         };
@@ -215,7 +215,7 @@ router.put('/:bugId/test/:testId/execute', validId('bugId'), validId('testId'), 
           timestamp: new Date(),
           op: 'execute',
           col: 'issue.test',
-          target: { userId },
+          target: { testId },
           updatedTest,
           auth: req.auth,
         };
@@ -231,6 +231,9 @@ router.put('/:bugId/test/:testId/execute', validId('bugId'), validId('testId'), 
 // delete a test from a bug
 router.delete('/:bugId/test/:testId', validId('bugId'), validId('testId'), async (req, res, next) => {
   try {
+    if (!req.auth) {
+      return res.status(401).json({ error: 'You must be logged in!' });
+    }
     const bugId = req.bugId;
     const testId = req.testId;
     const bug = await dbModule.findBugById(bugId);
@@ -243,6 +246,16 @@ router.delete('/:bugId/test/:testId', validId('bugId'), validId('testId'), async
         res.status(404).json({ error: `Test ${testId} not found.` });
       } else {
         await dbModule.deleteOneTest(bugId, test)
+
+        const edit = {
+          timestamp: new Date(),
+          op: 'delete',
+          col: 'issue.test',
+          target: { testId },
+          auth: req.auth,
+        };
+        await dbModule.saveEdit(edit);
+
         res.status(200).json({ message: `Test ${testId} deleted.`})
       }
     }
