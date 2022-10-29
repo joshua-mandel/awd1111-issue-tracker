@@ -74,7 +74,7 @@ router.put('/:bugId/test/new', validId('bugId'), validBody(newTestSchema), async
     if (!req.auth) {
       return res.status(401).json({ error: 'You must be logged in!' });
     }
-    
+
     const bugId = req.bugId;
     const bug = await dbModule.findBugById(bugId);
     if (!bug) {
@@ -102,8 +102,8 @@ router.put('/:bugId/test/new', validId('bugId'), validBody(newTestSchema), async
 
         const edit = {
           timestamp: new Date(),
-          op: 'update',
-          col: 'users',
+          op: 'insert',
+          col: 'issue.test',
           target: { userId },
           test,
           auth: req.auth,
@@ -128,6 +128,9 @@ router.put(
   validBody(updateTestSchema),
   async (req, res, next) => {
     try {
+      if (!req.auth) {
+        return res.status(401).json({ error: 'You must be logged in!' });
+      }
       const bugId = req.bugId;
       const testId = req.testId;
       const bug = await dbModule.findBugById(bugId);
@@ -139,8 +142,8 @@ router.put(
           res.status(404).json({ error: `Test ${testId} not found.` });
         } else {
           const updatedTest = req.body;
-          updatedTest.updatedDate = new Date();
-          updatedTest.updatedByUserId = new ObjectId(updatedTest.updatedByUserId);
+          updatedTest.lastUpdatedOn = new Date();
+          updatedTest.lastUpdatedBy = newId(req.auth._id);
           updatedTest._id = test._id;
           const updatedUser = await dbModule.findUserById(updatedTest.updatedByUserId);
           if (updatedUser.role == 'Quality Analyst') {
@@ -152,6 +155,15 @@ router.put(
             }
             const data = await dbModule.updateOneTest(bugId, updatedTest);
             if (data == 1) {
+              const edit = {
+                timestamp: new Date(),
+                op: 'update',
+                col: 'issue.test',
+                target: { testId },
+                updatedTest,
+                auth: req.auth,
+              };
+              await dbModule.saveEdit(edit);
               res.status(200).json({ message: `Bug Test ${test._id.toString()} updated!` });
             } else {
               res.status(400).json({ error: 'Not Updated.' });
@@ -170,6 +182,9 @@ router.put(
 // execute a test from a bug
 router.put('/:bugId/test/:testId/execute', validId('bugId'), validId('testId'), async (req, res, next) => {
   try {
+    if (!req.auth) {
+      return res.status(401).json({ error: 'You must be logged in!' });
+    }
     const bugId = req.bugId;
     const testId = req.testId;
     const updatedTest = {};
@@ -187,6 +202,7 @@ router.put('/:bugId/test/:testId/execute', validId('bugId'), validId('testId'), 
         } else {
           updatedTest.executedTest = 'execute passed';
         }
+        updatedTest.executedBy = newId(req.auth._id);
         updatedTest._id = test._id;
         updatedTest.status = parseInt(updatedTest.status);
         if (!updatedTest.status) {
@@ -195,6 +211,15 @@ router.put('/:bugId/test/:testId/execute', validId('bugId'), validId('testId'), 
           updatedTest.status = 'pass';
         }
         await dbModule.executeOneTest(bugId, updatedTest);
+        const edit = {
+          timestamp: new Date(),
+          op: 'execute',
+          col: 'issue.test',
+          target: { userId },
+          updatedTest,
+          auth: req.auth,
+        };
+        await dbModule.saveEdit(edit);
         res.status(200).json({ message: `Bug Test ${test._id.toString()} executed!` });
       }
     }

@@ -164,7 +164,7 @@ async function executeOneTest(bugId, executeBugTestCase) {
   const data = await db.collection('issue').updateOne(
     { _id: { $eq: bugId }, 'tests._id': { $eq: executeBugTestCase._id } },
     {
-      $set: { 'tests.$.executedTest': executeBugTestCase.executedTest, 'tests.$.lastUpdated': new Date() },
+      $set: { 'tests.$.executedTest': executeBugTestCase.executedTest, 'tests.$.executedOn': new Date() },
     }
   );
   return data.modifiedCount;
