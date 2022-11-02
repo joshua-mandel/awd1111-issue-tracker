@@ -41,11 +41,8 @@ const router = express.Router();
 
 // register routes
 // get all bugs
-router.get('/list', hasAnyRole(), async (req, res, next) => {
+router.get('/list', isLoggedIn(), async (req, res, next) => {
   try {
-    if (!req.auth) {
-      return res.status(401).json({ error: 'You must be logged in!' });
-    }
 
     // get inputs
     let { keywords, bugClass, maxAge, minAge, open, closed, sortBy, pageNumber, pageSize } = req.query;
@@ -121,12 +118,8 @@ router.get('/list', hasAnyRole(), async (req, res, next) => {
   }
 });
 // get one bug by ID
-router.get('/:bugId', validId('bugId'), hasAnyRole(), async (req, res, next) => {
+router.get('/:bugId', validId('bugId'), isLoggedIn(), async (req, res, next) => {
   try {
-    if (!req.auth) {
-      return res.status(401).json({ error: 'You must be logged in!' });
-    }
-
     const bugId = req.bugId;
     const bug = await dbModule.findBugById(bugId);
     if (!bug) {

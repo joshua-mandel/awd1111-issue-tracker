@@ -13,6 +13,7 @@ import { hasPermission, isLoggedIn, hasAnyRole, hasRole } from '@merlin4/express
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import Joi from 'joi';
+import { auth } from '../../middleware/auth.js';
 const debugMain = debug('app:route:user');
 
 // new user schema
@@ -28,6 +29,13 @@ const loginUserSchema = Joi.object({
   emailAddress: Joi.string().trim().min(1).email().required(),
   password: Joi.string().trim().min(1).required(),
 });
+
+const updateMyUserSchema = Joi.object({
+  emailAddress: Joi.string().trim().min(1).email(),
+  password: Joi.string().trim().min(1),
+  givenName: Joi.string().trim().min(1),
+  familyName: Joi.string().trim().min(1),
+}).min(1);
 
 // update user schema
 const updateUserSchema = Joi.object({
@@ -54,9 +62,7 @@ async function issueAuthToken(user) {
   const roleNames = Array.isArray(user.role) ? user.role : [user.role];
 
   // get all of the roles in parallel
-  const roles = await Promise.all(
-    roleNames.map((roleName) => dbModule.findRoleByName(roleName))
-  );
+  const roles = await Promise.all(roleNames.map((roleName) => dbModule.findRoleByName(roleName)));
 
   // combine the permission tables
   const permissions = {};
@@ -92,7 +98,7 @@ const router = express.Router();
 
 //register routes
 // get all users
-router.get('/list', hasRole(), async (req, res, next) => {
+router.get('/list', isLoggedIn(), async (req, res, next) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ error: 'You must be logged in!' });
@@ -108,24 +114,36 @@ router.get('/list', hasRole(), async (req, res, next) => {
     const match = {};
     if (keywords) {
       match.$text = { $search: keywords };
-    } if (role) {
+    }
+    if (role) {
       match.role = { $eq: role };
-    } if (minAge && maxAge) {
+    }
+    if (minAge && maxAge) {
       match.createdDate = { $gte: new Date(minAge), $lte: new Date(maxAge) };
-    } else if(minAge) {
+    } else if (minAge) {
       match.createdDate = { $gte: new Date(minAge) };
-    } else if(maxAge) {
+    } else if (maxAge) {
       match.createdDate = { $lte: new Date(maxAge) };
     }
 
     // sort stage
     let sort = { givenName: 1, familyName: 1, createdDate: 1 };
     switch (sortBy) {
-      case 'givenName': sort = { givenName: 1, familyName: 1, createdDate: 1 }; break;
-      case 'familyName': sort = { familyName: 1, givenName: 1, createdDate: 1 }; break;
-      case 'role': sort = { role: 1, givenName: 1, familyName: 1, createdDate: 1 }; break;
-      case 'newest': sort = { createdDate: -1 }; break;
-      case 'oldest' : sort = { createdDate: 1 }; break;
+      case 'givenName':
+        sort = { givenName: 1, familyName: 1, createdDate: 1 };
+        break;
+      case 'familyName':
+        sort = { familyName: 1, givenName: 1, createdDate: 1 };
+        break;
+      case 'role':
+        sort = { role: 1, givenName: 1, familyName: 1, createdDate: 1 };
+        break;
+      case 'newest':
+        sort = { createdDate: -1 };
+        break;
+      case 'oldest':
+        sort = { createdDate: 1 };
+        break;
     }
 
     // project stage
@@ -138,13 +156,7 @@ router.get('/list', hasRole(), async (req, res, next) => {
     const limit = pageSize;
 
     // pipeline
-    const pipeline = [
-      { $match: match },
-      { $sort: sort },
-      { $project: project },
-      { $skip: skip },
-      { $limit: limit },
-    ];
+    const pipeline = [{ $match: match }, { $sort: sort }, { $project: project }, { $skip: skip }, { $limit: limit }];
 
     const db = await connect();
     const cursor = db.collection('user').aggregate(pipeline);
@@ -156,9 +168,8 @@ router.get('/list', hasRole(), async (req, res, next) => {
   }
 });
 // get your own info
-router.get('/me', async (req, res, next) => {
+router.get('/me', isLoggedIn(), async (req, res, next) => {
   try {
-
     const userId = newId(req.auth._id);
     const user = await dbModule.findUserById(userId);
     if (!user) {
@@ -166,18 +177,14 @@ router.get('/me', async (req, res, next) => {
     } else {
       res.status(200).json(user);
     }
-
   } catch (err) {
     next(err);
   }
-})
+});
 // update your own info
-router.put('/me', validBody(updateUserSchema), async (req, res, next) => {
+router.put('/me', isLoggedIn(), validBody(updateUserSchema), async (req, res, next) => {
   try {
-    if (!req.auth) {
-      return res.status(401).json({ error: 'You must be logged in!' });
-    }
-
+    debugMain(`Auth ID: ${req.auth._id}`);
     const userId = newId(req.auth._id);
     const user = await dbModule.findUserById(userId);
     const update = req.body;
@@ -193,23 +200,26 @@ router.put('/me', validBody(updateUserSchema), async (req, res, next) => {
 
     if (!user) {
       res.status(404).json({ error: `User ${userId} not found.` });
+    } else if (update.role != user.role && req.auth.role != 'technical manager') {
+      res.status(403).json({ error: `You are not allowed to change roles!` });
     } else if (
       update.emailAddress === user.emailAddress ||
       update.password === user.password ||
       update.givenName === user.givenName ||
-      update.familyName === user.familyName ||
-      update.role === user.role
+      update.familyName === user.familyName
     ) {
       res.status(400).json({ error: `Duplicate data not allowed.` });
     } else {
       if (update.givenName && update.familyName) {
         update.fullName = update.givenName + ' ' + update.familyName;
-      } else if(update.givenName) {
+      } else if (update.givenName) {
         update.fullName = update.givenName + ' ' + user.familyName;
       } else if (update.familyName) {
         update.fullName = user.givenName + ' ' + update.familyName;
       }
       await dbModule.updateOneUser(userId, update);
+
+      const updatedUser = await dbModule.findUserById(userId);
 
       const edit = {
         timestamp: new Date(),
@@ -219,17 +229,21 @@ router.put('/me', validBody(updateUserSchema), async (req, res, next) => {
         update,
         auth: req.auth,
       };
-      await dbModule.saveEdit(edit);
+      const returnedEdit = await dbModule.saveEdit(edit);
+
+      //update._id = userId;
+      const authToken = await issueAuthToken(updatedUser);
+
+      setAuthCookie(res, authToken);
 
       res.status(200).json({ message: `User ${userId} updated, ${userId}` });
     }
-
   } catch (err) {
     next(err);
   }
 });
 // get one user by ID
-router.get('/:userId', validId('userId'), async (req, res, next) => {
+router.get('/:userId', isLoggedIn(), validId('userId'), async (req, res, next) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ error: 'You must be logged in!' });
@@ -254,7 +268,7 @@ router.post('/register', validBody(newUserSchema), async (req, res, next) => {
 
     // hash password
     user.password = await bcrypt.hash(user.password, 10);
-    
+
     const foundUser = await dbModule.findUserByEmail(user.emailAddress);
     if (foundUser != undefined) {
       res.status(400).json({ error: 'Email already registered' });
@@ -288,7 +302,6 @@ router.post('/login', validBody(loginUserSchema), async (req, res, next) => {
     const loginCreds = req.body;
     const user = await dbModule.findUserByEmail(loginCreds.emailAddress);
     if (user && (await bcrypt.compare(loginCreds.password, user.password))) {
-      
       const authToken = await issueAuthToken(user);
 
       setAuthCookie(res, authToken);
@@ -302,64 +315,70 @@ router.post('/login', validBody(loginUserSchema), async (req, res, next) => {
   }
 });
 // Update
-router.put('/:userId', validId('userId'), validBody(updateUserSchema), async (req, res, next) => {
-  try {
-    if (!req.auth) {
-      return res.status(401).json({ error: 'You must be logged in!' });
-    }
-    const userId = req.userId;
-    const update = req.body;
-    console.log(update);
-
-    if (update) {
-      update.lastUpdatedOn = new Date();
-      update.lastUpdatedBy = newId(req.auth._id);
-    }
-
-    if (update.password) {
-      const saltRounds = parseInt(config.get('auth.saltRounds'));
-      update.password = await bcrypt.hash(update.password, saltRounds);
-    }
-
-    const user = await dbModule.findUserById(userId);
-    if (!user) {
-      res.status(404).json({ error: `User ${userId} not found.` });
-    } else if (
-      update.emailAddress === user.emailAddress ||
-      update.password === user.password ||
-      update.givenName === user.givenName ||
-      update.familyName === user.familyName ||
-      update.role === user.role
-    ) {
-      res.status(400).json({ error: `Duplicate data not allowed.` });
-    } else {
-      if (update.givenName && update.familyName) {
-        update.fullName = update.givenName + ' ' + update.familyName;
-      } else if(update.givenName) {
-        update.fullName = update.givenName + ' ' + user.familyName;
-      } else if (update.familyName) {
-        update.fullName = user.givenName + ' ' + update.familyName;
+router.put(
+  '/:userId',
+  hasRole('technical manager'),
+  validId('userId'),
+  validBody(updateUserSchema),
+  async (req, res, next) => {
+    try {
+      if (!req.auth) {
+        return res.status(401).json({ error: 'You must be logged in!' });
       }
-      await dbModule.updateOneUser(userId, update);
+      const userId = req.userId;
+      const update = req.body;
+      console.log(update);
 
-      const edit = {
-        timestamp: new Date(),
-        op: 'update',
-        col: 'users',
-        target: { userId },
-        update,
-        auth: req.auth,
-      };
-      await dbModule.saveEdit(edit);
+      if (update) {
+        update.lastUpdatedOn = new Date();
+        update.lastUpdatedBy = newId(req.auth._id);
+      }
 
-      res.status(200).json({ message: `User ${userId} updated, ${userId}` });
+      if (update.password) {
+        const saltRounds = parseInt(config.get('auth.saltRounds'));
+        update.password = await bcrypt.hash(update.password, saltRounds);
+      }
+
+      const user = await dbModule.findUserById(userId);
+      if (!user) {
+        res.status(404).json({ error: `User ${userId} not found.` });
+      } else if (
+        update.emailAddress === user.emailAddress ||
+        update.password === user.password ||
+        update.givenName === user.givenName ||
+        update.familyName === user.familyName ||
+        update.role === user.role
+      ) {
+        res.status(400).json({ error: `Duplicate data not allowed.` });
+      } else {
+        if (update.givenName && update.familyName) {
+          update.fullName = update.givenName + ' ' + update.familyName;
+        } else if (update.givenName) {
+          update.fullName = update.givenName + ' ' + user.familyName;
+        } else if (update.familyName) {
+          update.fullName = user.givenName + ' ' + update.familyName;
+        }
+        await dbModule.updateOneUser(userId, update);
+
+        const edit = {
+          timestamp: new Date(),
+          op: 'update',
+          col: 'users',
+          target: { userId },
+          update,
+          auth: req.auth,
+        };
+        await dbModule.saveEdit(edit);
+
+        res.status(200).json({ message: `User ${userId} updated, ${userId}` });
+      }
+    } catch (err) {
+      next(err);
     }
-  } catch (err) {
-    next(err);
   }
-});
+);
 // Delete
-router.delete('/:userId', validId('userId'), async (req, res, next) => {
+router.delete('/:userId', hasRole('technical manager'), validId('userId'), async (req, res, next) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ error: 'You must be logged in!' });
@@ -386,7 +405,6 @@ router.delete('/:userId', validId('userId'), async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-  
 });
 
 export { router as userRouter };
