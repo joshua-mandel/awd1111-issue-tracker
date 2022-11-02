@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/joshua-mandel/awd1111-issue-tracker#readme",
   "dependencies": {
+    "@merlin4/express-auth": "^0.0.5",
     "bcrypt": "^5.1.0",
     "config": "^3.3.8",
     "cookie-parser": "^1.4.6",

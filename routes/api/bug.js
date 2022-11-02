@@ -1,5 +1,6 @@
 import debug from 'debug';
 import express from 'express';
+import { hasPermission, isLoggedIn, hasAnyRole, hasRole } from '@merlin4/express-auth';
 import * as dbModule from '../../database.js';
 import { newId, connect } from '../../database.js';
 import moment from 'moment';
@@ -40,7 +41,7 @@ const router = express.Router();
 
 // register routes
 // get all bugs
-router.get('/list', async (req, res, next) => {
+router.get('/list', hasAnyRole(), async (req, res, next) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ error: 'You must be logged in!' });
@@ -120,7 +121,7 @@ router.get('/list', async (req, res, next) => {
   }
 });
 // get one bug by ID
-router.get('/:bugId', validId('bugId'), async (req, res, next) => {
+router.get('/:bugId', validId('bugId'), hasAnyRole(), async (req, res, next) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ error: 'You must be logged in!' });
@@ -138,11 +139,8 @@ router.get('/:bugId', validId('bugId'), async (req, res, next) => {
   }
 });
 // new bug
-router.put('/new', validBody(newBugSchema), async (req, res, next) => {
+router.put('/new', hasAnyRole(), validBody(newBugSchema), async (req, res, next) => {
   try {
-    if (!req.auth) {
-      return res.status(401).json({ error: 'You must be logged in!' });
-    }
     const newBug = {
       ...req.body,
       _id: newId(),
@@ -212,7 +210,7 @@ router.put('/:bugId', validId('bugId'), validBody(updateBugSchema), async (req, 
   }
 });
 // update class
-router.put('/:bugId/classify', validId('bugId'), validBody(updateBugClassSchema), async (req, res, next) => {
+router.put('/:bugId/classify', hasRole('business analyst'), validId('bugId'), validBody(updateBugClassSchema), async (req, res, next) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ error: 'You must be logged in!' });

@@ -12,6 +12,7 @@ import { userRouter } from './routes/api/user.js';
 import { commentRouter } from './routes/api/comment.js';
 import { testRouter } from './routes/api/test.js';
 import { auth } from './middleware/auth.js';
+import { authMiddleware } from '@merlin4/express-auth';
 
 dotenv.config();
 
@@ -41,7 +42,7 @@ app.use((req, res, next) => {
 });
 app.use((err, req, res, next) => {
   debugError(err);
-  res.status(err.status || 500).json({ error: error.message });
+  res.status(err.status || 500).json({ error: err.message });
 });
 
 // listen for requests

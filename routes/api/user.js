@@ -9,6 +9,7 @@ import { nanoid } from 'nanoid';
 import { ObjectId } from 'mongodb';
 import { validId } from '../../middleware/validId.js';
 import { validBody } from '../../middleware/validBody.js';
+import { hasPermission, isLoggedIn, hasAnyRole, hasRole } from '@merlin4/express-auth';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import Joi from 'joi';
@@ -40,12 +41,58 @@ const updateUserSchema = Joi.object({
     .lowercase()
     .valid('developer', 'quality analyst', 'business analyst', 'technical manager', 'product manager'),
 }).min(1);
+
+async function issueAuthToken(user) {
+  const authPayload = {
+    _id: user._id,
+    email: user.email,
+    fullName: user.fullName,
+    role: user.role,
+  };
+
+  // get role names
+  const roleNames = Array.isArray(user.role) ? user.role : [user.role];
+
+  // get all of the roles in parallel
+  const roles = await Promise.all(
+    roleNames.map((roleName) => dbModule.findRoleByName(roleName))
+  );
+
+  // combine the permission tables
+  const permissions = {};
+  for (const role of roles) {
+    if (role && role.permissions) {
+      for (const permission in role.permissions) {
+        if (role.permissions[permission] === true) {
+          permissions[permission] = true;
+        }
+      }
+    }
+  }
+
+  // update the token payload
+  authPayload.permissions = permissions;
+
+  // issue token
+  const authSecret = config.get('auth.secret');
+  const authOptions = { expiresIn: config.get('auth.tokenExpiresIn') };
+  const authToken = jwt.sign(authPayload, authSecret, authOptions);
+  return authToken;
+}
+
+function setAuthCookie(res, authToken) {
+  const cookieOptions = {
+    httpOnly: true,
+    maxAge: parseInt(config.get('auth.cookieMaxAge')),
+  };
+  res.cookie('authToken', authToken, cookieOptions);
+}
 // create router
 const router = express.Router();
 
 //register routes
 // get all users
-router.get('/list', async (req, res, next) => {
+router.get('/list', hasRole(), async (req, res, next) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ error: 'You must be logged in!' });
@@ -111,9 +158,6 @@ router.get('/list', async (req, res, next) => {
 // get your own info
 router.get('/me', async (req, res, next) => {
   try {
-    if (!req.auth) {
-      return res.status(401).json({ error: 'You must be logged in!' });
-    }
 
     const userId = newId(req.auth._id);
     const user = await dbModule.findUserById(userId);
@@ -218,21 +262,9 @@ router.post('/register', validBody(newUserSchema), async (req, res, next) => {
       const dbResult = await dbModule.insertOneUser(user);
       debug('register result:', dbResult);
 
-      // issue token
-      const authPayload = {
-        _id: user._id,
-        role: user.role,
-        email: user.email,
-        fullName: user.fullName,
-      };
+      const authToken = await issueAuthToken(user);
 
-      const authSecret = config.get('auth.secret');
-      const authOptions = { expiresIn: config.get('auth.tokenExpiresIn') };
-      const authToken = jwt.sign(authPayload, authSecret, authOptions);
-
-      // create a cookie
-      const cookieOptions = { httpOnly: true, maxAge: parseInt(config.get('auth.cookieMaxAge')) };
-      res.cookie('authToken', authToken, cookieOptions);
+      setAuthCookie(res, authToken);
 
       const edit = {
         timestamp: new Date(),
@@ -256,21 +288,10 @@ router.post('/login', validBody(loginUserSchema), async (req, res, next) => {
     const loginCreds = req.body;
     const user = await dbModule.findUserByEmail(loginCreds.emailAddress);
     if (user && (await bcrypt.compare(loginCreds.password, user.password))) {
-      // issue token
-      const authPayload = {
-        _id: user._id,
-        role: user.role,
-        email: user.email,
-        fullName: user.fullName,
-      };
+      
+      const authToken = await issueAuthToken(user);
 
-      const authSecret = config.get('auth.secret');
-      const authOptions = { expiresIn: config.get('auth.tokenExpiresIn') };
-      const authToken = jwt.sign(authPayload, authSecret, authOptions);
-
-      // create a cookie
-      const cookieOptions = { httpOnly: true, maxAge: parseInt(config.get('auth.cookieMaxAge')) };
-      res.cookie('authToken', authToken, cookieOptions);
+      setAuthCookie(res, authToken);
 
       res.status(200).json({ message: 'Welcome back!', userId: user._id, token: authToken });
     } else {
@@ -363,7 +384,7 @@ router.delete('/:userId', validId('userId'), async (req, res, next) => {
       res.json({ message: `User ${userId} deleted.` });
     }
   } catch (err) {
-    next();
+    next(err);
   }
   
 });

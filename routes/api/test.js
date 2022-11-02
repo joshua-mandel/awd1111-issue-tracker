@@ -7,6 +7,7 @@ import { nanoid } from 'nanoid';
 import { ObjectId } from 'mongodb';
 import { validId } from '../../middleware/validId.js';
 import { validBody } from '../../middleware/validBody.js';
+import { hasPermission, isLoggedIn, hasAnyRole, hasRole } from '@merlin4/express-auth';
 import Joi from 'joi';
 import { userRouter } from './user.js';
 const debugMain = debug('app:route:test');
@@ -24,7 +25,7 @@ const updateTestSchema = Joi.object({
 const router = express.Router();
 
 // get all tests in a bug
-router.get('/:bugId/test/list', validId('bugId'), async (req, res, next) => {
+router.get('/:bugId/test/list', hasAnyRole(), validId('bugId'), async (req, res, next) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ error: 'You must be logged in!' });
@@ -44,7 +45,7 @@ router.get('/:bugId/test/list', validId('bugId'), async (req, res, next) => {
 });
 
 // get a specific test from a bug
-router.get('/:bugId/test/:testId', validId('bugId'), validId('testId'), async (req, res, next) => {
+router.get('/:bugId/test/:testId', hasAnyRole(), validId('bugId'), validId('testId'), async (req, res, next) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ error: 'You must be logged in!' });
@@ -69,7 +70,7 @@ router.get('/:bugId/test/:testId', validId('bugId'), validId('testId'), async (r
 });
 
 // add new test to bug
-router.put('/:bugId/test/new', validId('bugId'), validBody(newTestSchema), async (req, res, next) => {
+router.put('/:bugId/test/new', hasRole('quality analyst'), validId('bugId'), validBody(newTestSchema), async (req, res, next) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ error: 'You must be logged in!' });
@@ -120,7 +121,7 @@ router.put('/:bugId/test/new', validId('bugId'), validBody(newTestSchema), async
   }
 });
 
-// get a specific test from a bug
+// update a specific test from a bug
 router.put(
   '/:bugId/test/:testId',
   validId('bugId'),

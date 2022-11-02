@@ -8,6 +8,7 @@ import { nanoid } from 'nanoid';
 import { ObjectId } from 'mongodb';
 import { validId } from '../../middleware/validId.js';
 import { validBody } from '../../middleware/validBody.js';
+import { hasPermission, isLoggedIn, hasAnyRole, hasRole } from '@merlin4/express-auth';
 import Joi from 'joi';
 import { userRouter } from './user.js';
 const debugMain = debug('app:route:comment');
