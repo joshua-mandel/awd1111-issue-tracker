@@ -8,6 +8,10 @@
     "start": "node server.js",
     "start-dev": "nodemon -r dotenv/config server.js"
   },
+  "engines": {
+    "node": "16.7.0",
+    "npm": "8.15.0"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/joshua-mandel/awd1111-issue-tracker.git"
