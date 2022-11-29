@@ -7,6 +7,7 @@ const debugMain = debug('app:server');
 const debugError = debug('app:error');
 import * as path from 'path';
 import cookieParser from 'cookie-parser';
+import cors from 'cors';
 import { bugRouter } from './routes/api/bug.js';
 import { userRouter } from './routes/api/user.js';
 import { commentRouter } from './routes/api/comment.js';
@@ -18,6 +19,7 @@ dotenv.config();
 
 // create application
 const app = express();
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
