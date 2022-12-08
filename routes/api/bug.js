@@ -97,7 +97,7 @@ router.get('/list', isLoggedIn(), async (req, res, next) => {
     }
 
     // project stage
-    const project = { title: 1, bugClass: 1, closed: 1, createdDate: 1 };
+    const project = { title: 1, bugClass: 1, closed: 1, createdDate: 1, createdOn: 1, createdBy: 1 };
 
     // skip & limit stages
     pageNumber = parseInt(pageNumber) || 1;
@@ -132,13 +132,14 @@ router.get('/:bugId', validId('bugId'), isLoggedIn(), async (req, res, next) => 
   }
 });
 // new bug
-router.put('/new', hasAnyRole(), validBody(newBugSchema), async (req, res, next) => {
+router.put('/new', isLoggedIn(), validBody(newBugSchema), async (req, res, next) => {
   try {
     const newBug = {
       ...req.body,
       _id: newId(),
       createdOn: new Date(),
-      createdBy: newId(req.auth._id),
+      createdById: newId(req.auth._id),
+      createdBy: req.auth.fullName,
       classification: 'unclassified',
       closed: false,
     };
