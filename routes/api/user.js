@@ -53,7 +53,7 @@ const updateUserSchema = Joi.object({
 async function issueAuthToken(user) {
   const authPayload = {
     _id: user._id,
-    email: user.email,
+    emailAddress: user.emailAddress,
     fullName: user.fullName,
     role: user.role,
   };

@@ -43,7 +43,6 @@ const router = express.Router();
 // get all bugs
 router.get('/list', isLoggedIn(), async (req, res, next) => {
   try {
-
     // get inputs
     let { keywords, bugClass, maxAge, minAge, open, closed, sortBy, pageNumber, pageSize } = req.query;
 
@@ -164,12 +163,8 @@ router.put('/new', isLoggedIn(), validBody(newBugSchema), async (req, res, next)
   }
 });
 // update bug
-router.put('/:bugId', validId('bugId'), validBody(updateBugSchema), async (req, res, next) => {
+router.put('/:bugId', isLoggedIn(), validId('bugId'), validBody(updateBugSchema), async (req, res, next) => {
   try {
-    if (!req.auth) {
-      return res.status(401).json({ error: 'You must be logged in!' });
-    }
-
     const bugId = req.bugId;
     const update = req.body;
     update.lastUpdatedOn = new Date();
@@ -178,12 +173,6 @@ router.put('/:bugId', validId('bugId'), validBody(updateBugSchema), async (req, 
     const bug = await dbModule.findBugById(bugId);
     if (!bug) {
       res.status(404).json({ error: `Bug ${bugId} not found.` });
-    } else if (
-      update.title === bug.title ||
-      update.description === bug.description ||
-      update.stepsToReproduce === bug.stepsToReproduce
-    ) {
-      res.status(400).json({ error: `Duplicate data not allowed.` });
     } else {
       await dbModule.updateOneBug(bugId, update);
 
@@ -204,38 +193,44 @@ router.put('/:bugId', validId('bugId'), validBody(updateBugSchema), async (req, 
   }
 });
 // update class
-router.put('/:bugId/classify', hasRole('business analyst'), validId('bugId'), validBody(updateBugClassSchema), async (req, res, next) => {
-  try {
-    if (!req.auth) {
-      return res.status(401).json({ error: 'You must be logged in!' });
+router.put(
+  '/:bugId/classify',
+  hasRole('business analyst'),
+  validId('bugId'),
+  validBody(updateBugClassSchema),
+  async (req, res, next) => {
+    try {
+      if (!req.auth) {
+        return res.status(401).json({ error: 'You must be logged in!' });
+      }
+      const bugId = req.bugId;
+      const update = req.body;
+
+      const bug = await dbModule.findBugById(bugId);
+      if (!bug) {
+        res.status(404).json({ error: `Bug ${bugId} not found.` });
+      } else {
+        update.classifiedOn = new Date();
+        update.classifiedBy = newId(req.auth._id);
+        await dbModule.updateOneBug(bugId, update);
+
+        const edit = {
+          timestamp: new Date(),
+          op: 'update',
+          col: 'issue',
+          target: { bugId },
+          update,
+          auth: req.auth,
+        };
+        await dbModule.saveEdit(edit);
+
+        res.status(200).json({ message: `Bug ${bugId} classified!`, bugId });
+      }
+    } catch (err) {
+      next(err);
     }
-    const bugId = req.bugId;
-    const update = req.body;
-
-    const bug = await dbModule.findBugById(bugId);
-    if (!bug) {
-      res.status(404).json({ error: `Bug ${bugId} not found.` });
-    } else {
-      update.classifiedOn = new Date();
-      update.classifiedBy = newId(req.auth._id);
-      await dbModule.updateOneBug(bugId, update);
-
-      const edit = {
-        timestamp: new Date(),
-        op: 'update',
-        col: 'issue',
-        target: { bugId },
-        update,
-        auth: req.auth,
-      };
-      await dbModule.saveEdit(edit);
-
-      res.status(200).json({ message: `Bug ${bugId} classified!`, bugId });
-    }
-  } catch (err) {
-    next(err);
   }
-});
+);
 // assign to user
 router.put('/:bugId/assign', validId('bugId'), validBody(updateBugAssignSchema), async (req, res, next) => {
   try {
@@ -320,7 +315,6 @@ router.put('/:bugId/close', async (req, res, next) => {
         auth: req.auth,
       };
       await dbModule.saveEdit(edit);
-      
     }
   } catch (err) {
     next(err);
