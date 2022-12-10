@@ -43,7 +43,7 @@ const updateUserSchema = Joi.object({
   password: Joi.string().trim().min(1),
   givenName: Joi.string().trim().min(1),
   familyName: Joi.string().trim().min(1),
-  role: Joi.array().items(Joi.string().valid('', 'Technical Manager', 'Quality Analyst', 'Developer', 'Business Analyst', 'Product Manager'))
+  role: Joi.any().allow('', 'Technical Manager', 'Quality Analyst', 'Developer', 'Business Analyst', 'Product Manager')
 }).min(1);
 
 async function issueAuthToken(user) {
