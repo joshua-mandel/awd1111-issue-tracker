@@ -43,11 +43,7 @@ const updateUserSchema = Joi.object({
   password: Joi.string().trim().min(1),
   givenName: Joi.string().trim().min(1),
   familyName: Joi.string().trim().min(1),
-  role: Joi.string()
-    .trim()
-    .min(1)
-    .lowercase()
-    .valid('developer', 'quality analyst', 'business analyst', 'technical manager', 'product manager'),
+  role: Joi.array().items(Joi.string().valid('', 'Technical Manager', 'Quality Analyst', 'Developer', 'Business Analyst', 'Product Manager'))
 }).min(1);
 
 async function issueAuthToken(user) {
@@ -147,7 +143,7 @@ router.get('/list', isLoggedIn(), async (req, res, next) => {
     }
 
     // project stage
-    const project = { givenName: 1, familyName: 1, role: 1 };
+    const project = { givenName: 1, familyName: 1, role: 1, fullName: 1, emailAddress: 1, createdOn: 1, };
 
     // skip & limit stages
     pageNumber = parseInt(pageNumber) || 1;
@@ -317,7 +313,7 @@ router.post('/login', validBody(loginUserSchema), async (req, res, next) => {
 // Update
 router.put(
   '/:userId',
-  hasRole('technical manager'),
+  // hasRole('technical manager'),
   validId('userId'),
   validBody(updateUserSchema),
   async (req, res, next) => {
@@ -342,14 +338,6 @@ router.put(
       const user = await dbModule.findUserById(userId);
       if (!user) {
         res.status(404).json({ error: `User ${userId} not found.` });
-      } else if (
-        update.emailAddress === user.emailAddress ||
-        update.password === user.password ||
-        update.givenName === user.givenName ||
-        update.familyName === user.familyName ||
-        update.role === user.role
-      ) {
-        res.status(400).json({ error: `Duplicate data not allowed.` });
       } else {
         if (update.givenName && update.familyName) {
           update.fullName = update.givenName + ' ' + update.familyName;
