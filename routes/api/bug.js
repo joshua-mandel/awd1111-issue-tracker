@@ -157,7 +157,7 @@ router.put('/new', isLoggedIn(), validBody(newBugSchema), async (req, res, next)
     };
     await dbModule.saveEdit(edit);
 
-    res.status(200).json({ message: `New bug reported, ${newBug._id}` });
+    res.status(200).json({ message: `New bug reported, ${newBug._id}`, bugId: newBug._id });
   } catch (err) {
     next(err);
   }
