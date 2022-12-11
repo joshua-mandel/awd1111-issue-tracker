@@ -58,12 +58,12 @@ router.get('/list', isLoggedIn(), async (req, res, next) => {
     if (bugClass) {
       match.bugClass = { $eq: bugClass };
     }
-    if (open) {
+    if (open && !closed) {
       match.closed = { $eq: false };
     }
-    if (closed) {
+    if (closed && !open) {
       match.closed = { $eq: true };
-    }
+    } 
     if (minAge && maxAge) {
       match.createdDate = { $gte: new Date(minAge), $lte: new Date(maxAge) };
     } else if (minAge) {
@@ -139,7 +139,7 @@ router.put('/new', isLoggedIn(), validBody(newBugSchema), async (req, res, next)
       createdOn: new Date(),
       createdById: newId(req.auth._id),
       createdBy: req.auth.fullName,
-      classification: 'unclassified',
+      bugClass: 'unclassified',
       closed: false,
     };
 
