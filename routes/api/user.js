@@ -143,7 +143,7 @@ router.get('/list', isLoggedIn(), async (req, res, next) => {
     }
 
     // project stage
-    const project = { givenName: 1, familyName: 1, role: 1, fullName: 1, emailAddress: 1, createdOn: 1, };
+    const project = { givenName: 1, familyName: 1, role: 1, fullName: 1, emailAddress: 1, createdDate: 1, };
 
     // skip & limit stages
     pageNumber = parseInt(pageNumber) || 1;
@@ -258,7 +258,7 @@ router.get('/:userId', isLoggedIn(), validId('userId'), async (req, res, next) =
 // Register
 router.post('/register', validBody(newUserSchema), async (req, res, next) => {
   try {
-    const user = { ...req.body, _id: newId(), createdOn: new Date(), role: null };
+    const user = { ...req.body, _id: newId(), createdDate: new Date(), role: null };
 
     const userId = user._id;
 

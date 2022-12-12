@@ -96,7 +96,7 @@ router.get('/list', isLoggedIn(), async (req, res, next) => {
     }
 
     // project stage
-    const project = { title: 1, bugClass: 1, closed: 1, createdDate: 1, createdOn: 1, createdBy: 1 };
+    const project = { title: 1, bugClass: 1, closed: 1, createdDate: 1, createdBy: 1 };
 
     // skip & limit stages
     pageNumber = parseInt(pageNumber) || 1;

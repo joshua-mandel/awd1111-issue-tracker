@@ -84,7 +84,7 @@ router.put('/:bugId/test/new', hasRole('quality analyst'), validId('bugId'), val
       const test = req.body;
       test.status = parseInt(test.status);
       test._id = newId();
-      test.createdOn = new Date();
+      test.createdDate = new Date();
       if (bug.tests) {
         bug.tests.push(test);
       } else {
