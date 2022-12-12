@@ -136,7 +136,7 @@ router.put('/new', isLoggedIn(), validBody(newBugSchema), async (req, res, next)
     const newBug = {
       ...req.body,
       _id: newId(),
-      createdOn: new Date(),
+      createdDate: new Date(),
       createdById: newId(req.auth._id),
       createdBy: req.auth.fullName,
       bugClass: 'unclassified',
