@@ -106,8 +106,6 @@ router.get('/list', isLoggedIn(), async (req, res, next) => {
     minAge = parseInt(minAge);
     maxAge = parseInt(maxAge);
 
-    const now = new Date(); // get the current date and time
-
     const today = new Date(); // get the current date and clear out the time
     today.setHours(0);
     today.setMinutes(0);
