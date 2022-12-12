@@ -79,6 +79,7 @@ router.put('/:bugId/comment/new', validId('bugId'), validBody(newCommentSchema),
       const comment = req.body;
       comment._id = newId();
       comment.submittedOn = new Date();
+      comment.FullName = req.auth.fullName;
       if(bug.comments) {
         bug.comments.push(comment);
       } else {

@@ -106,6 +106,20 @@ router.get('/list', isLoggedIn(), async (req, res, next) => {
     minAge = parseInt(minAge);
     maxAge = parseInt(maxAge);
 
+    const now = new Date(); // get the current date and time
+
+    const today = new Date(); // get the current date and clear out the time
+    today.setHours(0);
+    today.setMinutes(0);
+    today.setSeconds(0);
+    today.setMilliseconds(0);
+
+    const pastMin = new Date(today); // make a copy of today
+    pastMin.setDate(pastMin.getDate() - minAge - 1); // set the date back to the value in minAge
+
+    const pastMax = new Date(today);
+    pastMax.setDate(pastMax.getDate() - maxAge);
+
     // match stage
     const match = {};
     if (keywords) {
@@ -115,11 +129,11 @@ router.get('/list', isLoggedIn(), async (req, res, next) => {
       match.role = { $eq: role };
     }
     if (minAge && maxAge) {
-      match.createdDate = { $gte: new Date(minAge), $lte: new Date(maxAge) };
+      match.createdDate = { $lt: pastMin, $gte: pastMax };
     } else if (minAge) {
-      match.createdDate = { $gte: new Date(minAge) };
+      match.createdDate = { $lt: pastMin };
     } else if (maxAge) {
-      match.createdDate = { $lte: new Date(maxAge) };
+      match.createdDate = { $gte: pastMax };
     }
 
     // sort stage
