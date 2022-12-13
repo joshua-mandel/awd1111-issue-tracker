@@ -209,7 +209,7 @@ router.put('/:bugId', isLoggedIn(), validId('bugId'), validBody(updateBugSchema)
 // update class
 router.put(
   '/:bugId/classify',
-  hasRole('business analyst'),
+  hasRole('Business Analyst'),
   validId('bugId'),
   validBody(updateBugClassSchema),
   async (req, res, next) => {
@@ -246,53 +246,51 @@ router.put(
   }
 );
 // assign to user
-router.put('/:bugId/assign', validId('bugId'), validBody(updateBugAssignSchema), async (req, res, next) => {
-  try {
-    if (!req.auth) {
-      return res.status(401).json({ error: 'You must be logged in!' });
-    }
+router.put(
+  '/:bugId/assign',
+  validId('bugId'),
+  isLoggedIn(),
+  validBody(updateBugAssignSchema),
+  async (req, res, next) => {
+    try {
+      const bugId = req.bugId;
+      const assignedToUserId = newId(req.body.assignedToUserId);
+      const user = await dbModule.findUserById(assignedToUserId);
+      const bug = await dbModule.findBugById(bugId);
 
-    const bugId = req.bugId;
-    const assignedToUserId = newId(req.body.assignedToUserId);
-    const user = await dbModule.findUserById(assignedToUserId);
-    const bug = await dbModule.findBugById(bugId);
-
-    if (!bug) {
-      res.status(404).json({ error: `Bug ${bugId} not found.` });
-    } else {
-      if (!user) {
-        res.status(404).json({ error: `Please include a valid assignedToUserId.` });
+      if (!bug) {
+        res.status(404).json({ error: `Bug ${bugId} not found.` });
       } else {
-        bug.assignedOn = new Date();
-        bug.assignedBy = newId(auth.req._id);
-        bug.assignedToUserId = assignedToUserId;
-        bug.assignedToUserName = user.emailAddress;
-        await dbModule.updateOneBug(bugId, bug);
+        if (!user) {
+          res.status(404).json({ error: `Please include a valid assignedToUserId.` });
+        } else {
+          bug.assignedOn = new Date();
+          bug.assignedBy = newId(req.auth._id);
+          bug.assignedToUserId = assignedToUserId;
+          bug.assignedToUserName = user.emailAddress;
+          await dbModule.updateOneBug(bugId, bug);
 
-        const edit = {
-          timestamp: new Date(),
-          op: 'update',
-          col: 'issue',
-          target: { bugId },
-          update,
-          auth: req.auth,
-        };
-        await dbModule.saveEdit(edit);
+          const edit = {
+            timestamp: new Date(),
+            op: 'update',
+            col: 'issue',
+            target: { bugId },
+            update: bug.assignedToUserId,
+            auth: req.auth,
+          };
+          await dbModule.saveEdit(edit);
 
-        res.status(200).json({ message: `Bug ${bugId} assigned!`, bugId });
+          res.status(200).json({ message: `Bug ${bugId} assigned!`, bugId });
+        }
       }
+    } catch (err) {
+      next(err);
     }
-  } catch (err) {
-    next(err);
   }
-});
+);
 // close bug
-router.put('/:bugId/close', async (req, res, next) => {
+router.put('/:bugId/close', isLoggedIn(), async (req, res, next) => {
   try {
-    if (!req.auth) {
-      return res.status(401).json({ error: 'You must be logged in!' });
-    }
-
     const bugId = newId(req.params.bugId);
     const bug = await dbModule.findBugById(bugId);
     const update = req.body;

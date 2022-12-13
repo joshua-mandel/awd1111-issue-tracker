@@ -15,7 +15,6 @@ const debugMain = debug('app:route:comment');
 
 // schemas
 const newCommentSchema = Joi.object({
-  author: Joi.string().trim().min(24).max(24).required(),
   commentText: Joi.string().trim().min(1).required(),
 });
 
@@ -49,11 +48,11 @@ router.get('/:bugId/comment/:commentId', validId('bugId'), validId('commentId'),
     const bugId = req.bugId;
     const commentId = req.commentId;
     const bug = await dbModule.findBugById(bugId);
-    if(!bug) {
+    if (!bug) {
       res.status(404).json({ error: `Bug ${bugId} not found.` });
     } else {
       const comment = await dbModule.findCommentById(bugId, commentId);
-      if(!comment) {
+      if (!comment) {
         res.status(404).json({ error: `Comment ${commentId} not found.` });
       } else {
         res.status(200).json(comment);
@@ -65,33 +64,35 @@ router.get('/:bugId/comment/:commentId', validId('bugId'), validId('commentId'),
 });
 
 // add new comment to bug
-router.put('/:bugId/comment/new', validId('bugId'), validBody(newCommentSchema), async (req, res, next) => {
-  try {
-    if (!req.auth) {
-      return res.status(401).json({ error: 'You must be logged in!' });
-    }
-
-    const bugId = req.bugId;
-    const bug = await dbModule.findBugById(bugId);
-    if(!bug) {
-      res.status(404).json({ error: `Bug ${bugId} not found.` });
-    } else {
-      const comment = req.body;
-      comment._id = newId();
-      comment.submittedOn = new Date();
-      comment.FullName = req.auth.fullName;
-      if(bug.comments) {
-        bug.comments.push(comment);
+router.put(
+  '/:bugId/comment/new',
+  isLoggedIn(),
+  validId('bugId'),
+  validBody(newCommentSchema),
+  async (req, res, next) => {
+    try {
+      const bugId = req.bugId;
+      const bug = await dbModule.findBugById(bugId);
+      if (!bug) {
+        res.status(404).json({ error: `Bug ${bugId} not found.` });
       } else {
-        bug.comments = [comment];
+        const comment = req.body;
+        comment._id = newId();
+        comment.submittedOn = new Date();
+        comment.FullName = req.auth.fullName;
+        if (bug.comments) {
+          bug.comments.push(comment);
+        } else {
+          bug.comments = [comment];
+        }
+        comment.author = newId(req.auth._id);
+        await dbModule.updateOneBug(bugId, bug);
+        res.status(200).json({ message: `Bug Comment ${comment._id.toString()} added!` });
       }
-      comment.author = newId(req.auth._id);
-      await dbModule.updateOneBug(bugId, bug);
-      res.status(200).json({ message: `Bug Comment ${comment._id.toString()} added!` });
+    } catch (err) {
+      next(err);
     }
-  } catch (err) {
-    next(err);
   }
-});
+);
 
 export { router as commentRouter };

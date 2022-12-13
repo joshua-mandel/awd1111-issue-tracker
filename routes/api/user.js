@@ -127,11 +127,11 @@ router.get('/list', isLoggedIn(), async (req, res, next) => {
       match.role = { $eq: role };
     }
     if (minAge && maxAge) {
-      match.createdDate = { $lt: pastMin, $gte: pastMax };
+      match.createdOn = { $lt: pastMin, $gte: pastMax };
     } else if (minAge) {
-      match.createdDate = { $lt: pastMin };
+      match.createdOn = { $lt: pastMin };
     } else if (maxAge) {
-      match.createdDate = { $gte: pastMax };
+      match.createdOn = { $gte: pastMax };
     }
 
     // sort stage
@@ -155,7 +155,7 @@ router.get('/list', isLoggedIn(), async (req, res, next) => {
     }
 
     // project stage
-    const project = { givenName: 1, familyName: 1, role: 1, fullName: 1, emailAddress: 1, createdDate: 1, };
+    const project = { givenName: 1, familyName: 1, role: 1, fullName: 1, emailAddress: 1, createdDate: 1, createdOn: 1 };
 
     // skip & limit stages
     pageNumber = parseInt(pageNumber) || 1;
@@ -253,9 +253,6 @@ router.put('/me', isLoggedIn(), validBody(updateUserSchema), async (req, res, ne
 // get one user by ID
 router.get('/:userId', isLoggedIn(), validId('userId'), async (req, res, next) => {
   try {
-    if (!req.auth) {
-      return res.status(401).json({ error: 'You must be logged in!' });
-    }
     const userId = req.userId;
     const user = await dbModule.findUserById(userId);
     if (!user) {
@@ -270,7 +267,7 @@ router.get('/:userId', isLoggedIn(), validId('userId'), async (req, res, next) =
 // Register
 router.post('/register', validBody(newUserSchema), async (req, res, next) => {
   try {
-    const user = { ...req.body, _id: newId(), createdDate: new Date(), role: null };
+    const user = { ...req.body, _id: newId(), createdOn: new Date(), role: null };
 
     const userId = user._id;
 
@@ -325,7 +322,7 @@ router.post('/login', validBody(loginUserSchema), async (req, res, next) => {
 // Update
 router.put(
   '/:userId',
-  // hasRole('technical manager'),
+  hasRole('Technical Manager'),
   validId('userId'),
   validBody(updateUserSchema),
   async (req, res, next) => {
