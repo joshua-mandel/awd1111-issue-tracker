@@ -9,7 +9,7 @@
     "start-dev": "nodemon -r dotenv/config server.js"
   },
   "engines": {
-    "node": "16.7.0",
+    "node": "18.7.0",
     "npm": "8.15.0"
   },
   "repository": {
